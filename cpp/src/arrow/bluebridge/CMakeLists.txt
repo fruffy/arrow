@@ -15,28 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Compiled source
-*.a
-*.dll
-*.o
-*.py[ocd]
-*.so
-*.so.*
-*.dylib
-.build_cache_dir
-MANIFEST
+# ----------------------------------------------------------------------
+# arrow_io : Arrow IO interfaces
 
-# Generated Visual Studio files
-*.vcxproj
-*.vcxproj.*
-*.sln
-*.iml
+ADD_ARROW_TEST(rmem_pool-test)
 
-cpp/.idea/
-python/.eggs/
-.vscode
-.idea/
-.pytest_cache/
-pkgs
-.Rproj.user
-cpp/debug
+# Headers: top level
+install(FILES
+  rmem_pool.h
+  DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/arrow/bluebridge")

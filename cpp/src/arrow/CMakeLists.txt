@@ -65,6 +65,12 @@ if (ARROW_COMPUTE)
   )
 endif()
 
+if (ARROW_BLUEBRIDGE)
+  set(ARROW_SRCS ${ARROW_SRCS}
+    bluebridge/rmem_pool.cc
+  )
+endif()
+
 if (ARROW_GPU)
   # IPC extensions required to build the GPU library
   set(ARROW_IPC ON)
@@ -219,3 +225,7 @@ ADD_ARROW_BENCHMARK(column-benchmark)
 
 add_subdirectory(io)
 add_subdirectory(util)
+if (ARROW_BLUEBRIDGE)
+  add_subdirectory(bluebridge)
+endif()
+

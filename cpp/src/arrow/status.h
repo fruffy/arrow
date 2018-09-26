@@ -84,7 +84,8 @@ enum class StatusCode : char {
   PlasmaObjectNonexistent = 21,
   PlasmaStoreFull = 22,
   PlasmaObjectAlreadySealed = 23,
-  StillExecuting = 24
+  StillExecuting = 24,
+  OutOfRMem = 25
 };
 
 #if defined(__clang__)
@@ -129,6 +130,9 @@ class ARROW_EXPORT Status {
   // Return error status of an appropriate type.
   static Status OutOfMemory(const std::string& msg) {
     return Status(StatusCode::OutOfMemory, msg);
+  }
+  static Status OutOfRMem(const std::string& msg) {
+    return Status(StatusCode::OutOfRMem, msg);
   }
 
   static Status KeyError(const std::string& msg) {
@@ -187,6 +191,7 @@ class ARROW_EXPORT Status {
   bool ok() const { return (state_ == NULL); }
 
   bool IsOutOfMemory() const { return code() == StatusCode::OutOfMemory; }
+  bool IsOutOfRMem() const { return code() == StatusCode::OutOfRMem; }
   bool IsKeyError() const { return code() == StatusCode::KeyError; }
   bool IsInvalid() const { return code() == StatusCode::Invalid; }
   bool IsIOError() const { return code() == StatusCode::IOError; }

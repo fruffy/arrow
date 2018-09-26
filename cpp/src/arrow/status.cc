@@ -45,6 +45,9 @@ std::string Status::CodeAsString() const {
     case StatusCode::OutOfMemory:
       type = "Out of memory";
       break;
+    case StatusCode::OutOfRMem:
+      type = "Out of remote memory";
+      break;
     case StatusCode::KeyError:
       type = "Key error";
       break;

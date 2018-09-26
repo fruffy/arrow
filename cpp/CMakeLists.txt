@@ -216,6 +216,10 @@ Pass multiple labels by dividing with semicolons")
     "Build the plasma object store along with Arrow"
     OFF)
 
+  option(ARROW_BLUEBRIDGE
+    "Build the bluebridge remote memory library along with Arrow"
+    OFF)
+
   option(ARROW_PLASMA_JAVA_CLIENT
     "Build the plasma object store java client"
     OFF)
@@ -743,12 +747,11 @@ endif()
 ############################################################
 # Subdirectories
 ############################################################
+add_subdirectory(src/arrow)
 
 if(NOT WIN32 AND ARROW_PLASMA)
   add_subdirectory(src/plasma)
 endif()
-
-add_subdirectory(src/arrow)
 
 if(ARROW_FLIGHT)
   add_subdirectory(src/arrow/flight)
