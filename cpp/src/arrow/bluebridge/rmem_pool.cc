@@ -28,6 +28,11 @@
 
 #include "arrow/status.h"
 #include "arrow/util/logging.h"
+extern "C" {
+  #include "utils.h"
+}
+
+
 
 #ifdef ARROW_JEMALLOC
 // Needed to support jemalloc 3 and 4

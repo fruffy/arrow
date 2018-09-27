@@ -66,9 +66,15 @@ if (ARROW_COMPUTE)
 endif()
 
 if (ARROW_BLUEBRIDGE)
-  set(ARROW_SRCS ${ARROW_SRCS}
+  add_subdirectory(bluebridge)
+  set (BLUEBRIDGE_DIR ${CMAKE_SOURCE_DIR}/../../../ip6)
+  include_directories(${BLUEBRIDGE_DIR}/lib)
+  link_directories(${BLUEBRIDGE_DIR})
+  set(ARROW_BLUEBRIDGE_SRCS
     bluebridge/rmem_pool.cc
   )
+  SET(ARROW_SRCS ${ARROW_SRCS} ${ARROW_BLUEBRIDGE_SRCS})
+  set (ARROW_STATIC_LINK_LIBS ${ARROW_STATIC_LINK_LIBS} bluebridge)
 endif()
 
 if (ARROW_GPU)
@@ -225,7 +231,4 @@ ADD_ARROW_BENCHMARK(column-benchmark)
 
 add_subdirectory(io)
 add_subdirectory(util)
-if (ARROW_BLUEBRIDGE)
-  add_subdirectory(bluebridge)
-endif()
 

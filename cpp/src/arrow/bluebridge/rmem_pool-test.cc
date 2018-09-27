@@ -22,7 +22,9 @@
 #include "arrow/bluebridge/rmem_pool-test.h"
 #include "arrow/bluebridge/rmem_pool.h"
 #include "arrow/status.h"
-
+extern "C" {
+#include "client_lib.h"
+}
 namespace arrow {
 
 class TestDefaultRMemPool : public ::arrow::TestRMemPoolBase {

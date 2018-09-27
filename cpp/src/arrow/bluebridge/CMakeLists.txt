@@ -15,12 +15,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# ----------------------------------------------------------------------
-# arrow_io : Arrow IO interfaces
+#######################################
+# bluebridge
+#######################################
+set (BLUEBRIDGE_DIR ${CMAKE_SOURCE_DIR}/../../../ip6)
+include_directories(${BLUEBRIDGE_DIR}/lib)
+link_directories(${BLUEBRIDGE_DIR})
 
-ADD_ARROW_TEST(rmem_pool-test)
+set(BLUEBRIDGE_TEST_LINK_LIBS bluebridge ${ARROW_TEST_LINK_LIBS})
 
-# Headers: top level
+set(OUTPUT_DIR ${CMAKE_BINARY_DIR}/src/arrow/bluebridge)
+
 install(FILES
   rmem_pool.h
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/arrow/bluebridge")
+
+ADD_ARROW_TEST(rmem_pool-test STATIC_LINK_LIBS ${BLUEBRIDGE_TEST_LINK_LIBS})

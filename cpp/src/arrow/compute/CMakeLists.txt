@@ -16,6 +16,10 @@
 # under the License.
 
 # Headers: top level
+set (BLUEBRIDGE_DIR ${CMAKE_SOURCE_DIR}/../../../ip6)
+include_directories(${BLUEBRIDGE_DIR}/lib)
+link_directories(${BLUEBRIDGE_DIR})
+
 install(FILES
   api.h
   context.h
