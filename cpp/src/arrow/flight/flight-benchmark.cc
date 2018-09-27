@@ -43,9 +43,11 @@ DEFINE_int32(records_per_batch, 4096, "Total records per batch within stream");
 
 namespace perf = arrow::flight::perf;
 
-using ThreadPool = ::arrow::internal::ThreadPool;
-
 namespace arrow {
+
+using internal::StopWatch;
+using internal::ThreadPool;
+
 namespace flight {
 
 struct PerformanceStats {
@@ -156,7 +158,8 @@ Status RunPerformanceTest(const int port) {
 
   // Elapsed time in seconds
   uint64_t elapsed_nanos = timer.Stop();
-  double time_elapsed = elapsed_nanos / static_cast<double>(1000000000LL);
+  double time_elapsed =
+      static_cast<double>(elapsed_nanos) / static_cast<double>(1000000000);
 
   constexpr double kMegabyte = static_cast<double>(1 << 20);
 
@@ -167,8 +170,9 @@ Status RunPerformanceTest(const int port) {
 
   std::cout << "Bytes read: " << stats.total_bytes << std::endl;
   std::cout << "Nanos: " << elapsed_nanos << std::endl;
-  std::cout << "Speed: " << (stats.total_bytes / time_elapsed / kMegabyte) << " MB/s"
-            << std::endl;
+  std::cout << "Speed: "
+            << (static_cast<double>(stats.total_bytes) / kMegabyte / time_elapsed)
+            << " MB/s" << std::endl;
   return Status::OK();
 }
 

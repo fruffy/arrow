@@ -293,6 +293,14 @@ Pass multiple labels by dividing with semicolons")
 Always OFF if building binaries"
     OFF)
 
+  option(PARQUET_BUILD_EXECUTABLES
+    "Build the Parquet executable CLI tools"
+    OFF)
+
+  option(PARQUET_BUILD_EXAMPLES
+    "Build the Parquet examples"
+    OFF)
+
   set(PARQUET_ARROW_LINKAGE "shared" CACHE STRING
     "How to link Arrow libraries with libparquet.so. static|shared (default shared)")
 
@@ -767,4 +775,6 @@ endif()
 
 if(ARROW_PARQUET)
   add_subdirectory(src/parquet)
+  add_subdirectory(tools/parquet)
+  add_subdirectory(examples/parquet/low-level-api)
 endif()

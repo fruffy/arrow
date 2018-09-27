@@ -15,8 +15,22 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#pragma once
+#include <iostream>
 
-#define STRICT_R_HEADERS
-#include <Rcpp.h>
-#include <arrow/api.h>
+#include "parquet/api/reader.h"
+#include "parquet/api/schema.h"
+
+int main(int argc, char** argv) {
+  std::string filename = argv[1];
+
+  try {
+    std::unique_ptr<parquet::ParquetFileReader> reader =
+        parquet::ParquetFileReader::OpenFile(filename);
+    PrintSchema(reader->metadata()->schema()->schema_root().get(), std::cout);
+  } catch (const std::exception& e) {
+    std::cerr << "Parquet error: " << e.what() << std::endl;
+    return -1;
+  }
+
+  return 0;
+}

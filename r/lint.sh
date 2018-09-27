@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,8 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-context("test-arrow.R")
+SOURCE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+CPP_BUILD_SUPPORT=$SOURCE_DIR/../cpp/build-support
 
-test_that("can use arrow C++ library", {
-  expect_equal(arrow:::ping_arrow(), "int32")
-})
+LLVM_VERSION=6.0
+CLANG_FORMAT=clang-format-$LLVM_VERSION
+
+$CPP_BUILD_SUPPORT/run_clang_format.py $CLANG_FORMAT \
+                                       $CPP_BUILD_SUPPORT/clang_format_exclusions.txt \
+                                       $SOURCE_DIR/src --quiet $1

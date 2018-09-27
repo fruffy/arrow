@@ -499,6 +499,27 @@ def test_recordbatchlist_schema_equals():
         pa.Table.from_batches([batch1, batch2])
 
 
+def test_table_from_batches_and_schema():
+    schema = pa.schema([
+        pa.field('a', pa.int64()),
+        pa.field('b', pa.float64()),
+    ])
+    batch = pa.RecordBatch.from_arrays([pa.array([1]), pa.array([3.14])],
+                                       names=['a', 'b'])
+    table = pa.Table.from_batches([batch], schema)
+    assert table.schema.equals(schema)
+    assert table.column(0) == pa.column('a', pa.array([1]))
+    assert table.column(1) == pa.column('b', pa.array([3.14]))
+
+    incompatible_schema = pa.schema([pa.field('a', pa.int64())])
+    with pytest.raises(pa.ArrowInvalid):
+        pa.Table.from_batches([batch], incompatible_schema)
+
+    incompatible_batch = pa.RecordBatch.from_arrays([pa.array([1])], ['a'])
+    with pytest.raises(pa.ArrowInvalid):
+        pa.Table.from_batches([incompatible_batch], schema)
+
+
 def test_table_to_batches():
     df1 = pd.DataFrame({'a': list(range(10))})
     df2 = pd.DataFrame({'a': list(range(10, 30))})
@@ -751,6 +772,26 @@ def test_concat_tables():
                                     names=('a', 'b'))
 
     assert result.equals(expected)
+
+
+def test_concat_tables_with_different_schema_metadata():
+    schema = pa.schema([
+        pa.field('a', pa.string()),
+        pa.field('b', pa.string()),
+    ])
+
+    values = list('abcdefgh')
+    df1 = pd.DataFrame({'a': values, 'b': values})
+    df2 = pd.DataFrame({'a': [np.nan] * 8, 'b': values})
+
+    table1 = pa.Table.from_pandas(df1, schema=schema, preserve_index=False)
+    table2 = pa.Table.from_pandas(df2, schema=schema, preserve_index=False)
+    assert table1.schema.equals(table2.schema, check_metadata=False)
+    assert not table1.schema.equals(table2.schema, check_metadata=True)
+
+    table3 = pa.concat_tables([table1, table2])
+    assert table1.schema.equals(table3.schema, check_metadata=True)
+    assert table2.schema.equals(table3.schema, check_metadata=False)
 
 
 def test_table_negative_indexing():
