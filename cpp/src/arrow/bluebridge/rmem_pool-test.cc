@@ -18,7 +18,7 @@
 #include <cstdint>
 
 #include <gtest/gtest.h>
-
+#include <unistd.h>
 #include "arrow/bluebridge/rmem_pool-test.h"
 #include "arrow/bluebridge/rmem_pool.h"
 #include "arrow/status.h"
@@ -30,6 +30,18 @@ namespace arrow {
 class TestDefaultRMemPool : public ::arrow::TestRMemPoolBase {
  public:
   ::arrow::RMemPool* rmem_pool() override { return ::arrow::default_rmem_pool(); }
+  virtual void SetUp() override{
+    char cwd[PATH_MAX];
+    if (getcwd(cwd, sizeof(cwd)) != NULL) {
+        printf("Current working dir: %s\n", cwd);
+    } else {
+        perror("getcwd() error");
+    }
+    struct config myConf = set_bb_config("../../../../ip6/tmp/config/distMem.cnf", 0);
+    struct sockaddr_in6 *target_ip = init_sockets(&myConf, 0);
+    set_host_list(myConf.hosts, myConf.num_hosts);
+
+  }
 };
 
 TEST_F(TestDefaultRMemPool, RMemTracking) { this->TestRMemTracking(); }

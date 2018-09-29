@@ -28,6 +28,9 @@ set(OUTPUT_DIR ${CMAKE_BINARY_DIR}/src/arrow/bluebridge)
 
 install(FILES
   rmem_pool.h
+  rmem_buffer.h
+  rmem.h
   DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/arrow/bluebridge")
 
 ADD_ARROW_TEST(rmem_pool-test STATIC_LINK_LIBS ${BLUEBRIDGE_TEST_LINK_LIBS})
+ADD_ARROW_TEST(rmem_buffer-test STATIC_LINK_LIBS ${BLUEBRIDGE_TEST_LINK_LIBS})

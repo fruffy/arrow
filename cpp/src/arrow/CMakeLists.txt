@@ -72,6 +72,8 @@ if (ARROW_BLUEBRIDGE)
   link_directories(${BLUEBRIDGE_DIR})
   set(ARROW_BLUEBRIDGE_SRCS
     bluebridge/rmem_pool.cc
+    bluebridge/rmem_buffer.cc
+    bluebridge/rmem.cc
   )
   SET(ARROW_SRCS ${ARROW_SRCS} ${ARROW_BLUEBRIDGE_SRCS})
   set (ARROW_STATIC_LINK_LIBS ${ARROW_STATIC_LINK_LIBS} bluebridge)
