@@ -54,6 +54,10 @@ class ARROW_EXPORT RMemPool {
   ///   faster deallocation if supported by its backend.
   virtual void Free(uint8_t* buffer, int64_t size) = 0;
 
+  virtual void Write(void *ptr, uint64_t offset,  uint8_t *data, uint64_t size) = 0;
+
+  virtual void Read(void *ptr, uint64_t offset, uint8_t *buffer, uint64_t size) = 0;
+
   /// The number of bytes that were allocated and not yet free'd through
   /// this allocator.
   virtual int64_t bytes_allocated() const = 0;
@@ -78,6 +82,10 @@ class ARROW_EXPORT LoggingRMemPool : public RMemPool {
 
   void Free(uint8_t* buffer, int64_t size) override;
 
+  void Write(void *ptr, uint64_t offset,  uint8_t *data, uint64_t size) override;
+
+  void Read(void *ptr, uint64_t offset, uint8_t *buffer, uint64_t size) override;
+
   int64_t bytes_allocated() const override;
 
   int64_t max_rmem() const override;
@@ -99,6 +107,10 @@ class ARROW_EXPORT ProxyRMemPool : public RMemPool {
   Status Reallocate(int64_t old_size, int64_t new_size, uint8_t** ptr) override;
 
   void Free(uint8_t* buffer, int64_t size) override;
+
+  void Write(void *ptr, uint64_t offset,  uint8_t *data, uint64_t size) override;
+
+  void Read(void *ptr, uint64_t offset, uint8_t *buffer, uint64_t size) override;
 
   int64_t bytes_allocated() const override;
 

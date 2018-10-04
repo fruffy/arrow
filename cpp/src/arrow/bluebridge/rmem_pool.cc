@@ -25,21 +25,16 @@
 #include <iostream>
 #include <memory>
 #include <sstream>  // IWYU pragma: keep
-
+#include <arpa/inet.h>  // IWYU pragma: keep
 #include "arrow/status.h"
 #include "arrow/util/logging.h"
 extern "C" {
   #include "utils.h"
+  #include "client_lib.h"
 }
-
-
-
-#ifdef ARROW_JEMALLOC
-// Needed to support jemalloc 3 and 4
-#define JEMALLOC_MANGLE
-// Explicitly link to our version of jemalloc
-#include "jemalloc_ep/dist/include/jemalloc/jemalloc.h"
-#endif
+#include "khash.h"
+KHASH_MAP_INIT_INT64(ptr_ip6_map, ip6_memaddr_block)
+#define BB_PORT 5000
 
 namespace arrow {
 
@@ -48,20 +43,15 @@ constexpr size_t kAlignment = 64;
 namespace {
 // Allocate rmem according to the alignment requirements for Arrow
 // (as of May 2016 64 bytes)
-Status AllocateAligned(int64_t size, uint8_t** out) {
-  const int result = posix_memalign(reinterpret_cast<void**>(out), kAlignment,
-                                    static_cast<size_t>(size));
-  if (result == ENOMEM) {
-    std::stringstream ss;
-    ss << "malloc of size " << size << " failed";
-    return Status::OutOfRMem(ss.str());
-  }
-
-  if (result == EINVAL) {
-    std::stringstream ss;
-    ss << "invalid alignment parameter: " << kAlignment;
-    return Status::Invalid(ss.str());
-  }
+Status AllocateRMem(int64_t size, sockaddr_in6 *target_ip, ip6_memaddr_block *ip6_block) {
+  target_ip->sin6_addr = gen_rdm_ip6_target();
+  ip6_memaddr_block tmp_block = allocate_uniform_rmem(target_ip, static_cast<size_t>(size));
+  memcpy(ip6_block, &tmp_block, sizeof(ip6_memaddr_block));
+//  if (ip6_block) {
+//    std::stringstream ss;
+//    ss << "malloc of size " << size << " failed";
+//    return Status::OutOfRMem(ss.str());
+//  }
   return Status::OK();
 }
 }  // namespace
@@ -103,56 +93,70 @@ class RMemPoolStats {
 
 class DefaultRMemPool : public RMemPool {
  public:
-  ~DefaultRMemPool() override {}
+  DefaultRMemPool() {
+    h = kh_init(ptr_ip6_map);
+    target_ip.sin6_port = ntohs(BB_PORT);
+  }
+
+  uint8_t *storeIP6(ip6_memaddr_block *ip6_block) {
+    uint8_t* out;
+    int ret;
+    k = kh_put(ptr_ip6_map, h, (uint64_t) ip6_block, &ret);
+    kh_value(h, k) = *ip6_block;
+    out = (uint8_t *) ip6_block;
+    return out;
+  }
+
+  ip6_memaddr_block PtrToIp6(void *ptr) {
+      k = kh_get(ptr_ip6_map, h, (uint64_t) ptr);
+      if (k == kh_end(h)) {  // k will be equal to kh_end if key not present
+         printf("Key not found!\n");
+      }
+      return kh_value(h, k);
+  }
+
+  void Write(void *ptr, uint64_t offset,  uint8_t *data, uint64_t size) override {
+    ip6_memaddr_block ip6_block = PtrToIp6(ptr);
+    ip6_block.offset = offset;
+    write_uniform_rmem(&target_ip, ip6_block, data, size);
+  }
+
+  void Read(void *ptr, uint64_t offset, uint8_t *buffer, uint64_t size) override {
+    ip6_memaddr_block ip6_block = PtrToIp6(ptr);
+    ip6_block.offset = offset;
+    read_uniform_rmem(&target_ip, ip6_block, buffer, size);
+  }
 
   Status Allocate(int64_t size, uint8_t** out) override {
-    RETURN_NOT_OK(AllocateAligned(size, out));
-
+    ip6_memaddr_block *ip6_block = (ip6_memaddr_block *)malloc(sizeof(ip6_memaddr_block));
+    RETURN_NOT_OK(AllocateRMem(size, &target_ip, ip6_block));
+    *out = storeIP6(ip6_block);
     stats_.UpdateAllocatedBytes(size);
     return Status::OK();
   }
 
   Status Reallocate(int64_t old_size, int64_t new_size, uint8_t** ptr) override {
-#ifdef ARROW_JEMALLOC
-    uint8_t* previous_ptr = *ptr;
-    *ptr = reinterpret_cast<uint8_t*>(rallocx(*ptr, new_size, MALLOCX_ALIGN(kAlignment)));
-    if (*ptr == NULL) {
-      std::stringstream ss;
-      ss << "realloc of size " << new_size << " failed";
-      *ptr = previous_ptr;
-      return Status::OutOfRMem(ss.str());
-    }
-#else
-    // Note: We cannot use realloc() here as it doesn't guarantee alignment.
-
     // Allocate new chunk
     uint8_t* out = nullptr;
-    RETURN_NOT_OK(AllocateAligned(new_size, &out));
+    RETURN_NOT_OK(Allocate(new_size, &out));
     DCHECK(out);
-    // Copy contents and release old rmem chunk
-    memcpy(out, *ptr, static_cast<size_t>(std::min(new_size, old_size)));
-#ifdef _MSC_VER
-    _aligned_free(*ptr);
-#else
-    std::free(*ptr);
-#endif  // defined(_MSC_VER)
+    // Should be an explicit migrate call, for now we do it the slow, simple way
+    ip6_memaddr_block src_block = PtrToIp6(*ptr);
+    ip6_memaddr_block dst_block = PtrToIp6(out);
+    uint8_t tmp_data[old_size];
+    read_uniform_rmem(&target_ip, src_block, tmp_data, std::min(new_size, old_size));
+    write_uniform_rmem(&target_ip, dst_block, tmp_data, std::min(new_size, old_size));
+    this->Free(*ptr, old_size);
     *ptr = out;
-#endif  // defined(ARROW_JEMALLOC)
 
-    stats_.UpdateAllocatedBytes(new_size - old_size);
     return Status::OK();
   }
 
   int64_t bytes_allocated() const override { return stats_.bytes_allocated(); }
 
   void Free(uint8_t* buffer, int64_t size) override {
-#ifdef _MSC_VER
-    _aligned_free(buffer);
-#elif defined(ARROW_JEMALLOC)
-    dallocx(buffer, MALLOCX_ALIGN(kAlignment));
-#else
-    std::free(buffer);
-#endif
+    ip6_memaddr_block ip6_block = PtrToIp6(buffer);
+    int status = free_rmem(&target_ip, &ip6_block.memaddr);
     stats_.UpdateAllocatedBytes(-size);
   }
 
@@ -160,6 +164,10 @@ class DefaultRMemPool : public RMemPool {
 
  private:
   RMemPoolStats stats_;
+  khiter_t k;
+  khash_t(ptr_ip6_map) *h;
+  struct sockaddr_in6 target_ip;
+
 };
 
 RMemPool* default_rmem_pool() {
@@ -202,6 +210,16 @@ int64_t LoggingRMemPool::max_rmem() const {
   return mem;
 }
 
+void LoggingRMemPool::Write(void *ptr, uint64_t offset, uint8_t* data, uint64_t size) {
+  pool_->Write(ptr, offset, data, size);
+}
+
+void LoggingRMemPool::Read(void *ptr, uint64_t offset, uint8_t* buffer, uint64_t size){
+  pool_->Read(ptr, offset, buffer, size);
+}
+
+
+
 ///////////////////////////////////////////////////////////////////////
 // ProxyRMemPool implementation
 
@@ -226,9 +244,14 @@ class ProxyRMemPool::ProxyRMemPoolImpl {
     stats_.UpdateAllocatedBytes(-size);
   }
 
+  void Write(void *ptr, uint64_t offset, uint8_t* data, uint64_t size) {pool_->Write(ptr, offset, data, size);}
+
+  void Read(void *ptr, uint64_t offset, uint8_t* buffer, uint64_t size) {pool_->Read(ptr, offset, buffer, size);}
+
   int64_t bytes_allocated() const { return stats_.bytes_allocated(); }
 
   int64_t max_rmem() const { return stats_.max_rmem(); }
+
 
  private:
   RMemPool* pool_;
@@ -253,8 +276,17 @@ void ProxyRMemPool::Free(uint8_t* buffer, int64_t size) {
   return impl_->Free(buffer, size);
 }
 
+void ProxyRMemPool::Write(void *ptr, uint64_t offset, uint8_t* data, uint64_t size) {
+  impl_->Write(ptr, offset, data, size);
+}
+
+void ProxyRMemPool::Read(void *ptr, uint64_t offset, uint8_t* buffer, uint64_t size){
+  impl_->Read(ptr, offset, buffer, size);
+}
+
 int64_t ProxyRMemPool::bytes_allocated() const { return impl_->bytes_allocated(); }
 
 int64_t ProxyRMemPool::max_rmem() const { return impl_->max_rmem(); }
+
 
 }  // namespace arrow

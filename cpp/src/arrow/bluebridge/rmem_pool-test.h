@@ -34,13 +34,17 @@ class TestRMemPoolBase : public ::testing::Test {
     auto pool = rmem_pool();
 
     uint8_t* data;
+    uint64_t test1 = -1;
+    uint64_t test2 = -1;
     ASSERT_OK(pool->Allocate(100, &data));
-    EXPECT_EQ(static_cast<uint64_t>(0), reinterpret_cast<uint64_t>(data) % 64);
+    pool->Read(data, 0, (uint8_t *) &test1, 1);
+    EXPECT_EQ(static_cast<uint64_t>(0), reinterpret_cast<uint64_t>(test1) % 64);
     ASSERT_EQ(100, pool->bytes_allocated());
 
     uint8_t* data2;
     ASSERT_OK(pool->Allocate(27, &data2));
-    EXPECT_EQ(static_cast<uint64_t>(0), reinterpret_cast<uint64_t>(data2) % 64);
+    pool->Read(data2, 0, (uint8_t *) &test2, 1);
+    EXPECT_EQ(static_cast<uint64_t>(0), reinterpret_cast<uint64_t>(test2) % 64);
     ASSERT_EQ(127, pool->bytes_allocated());
 
     pool->Free(data, 100);
@@ -63,17 +67,21 @@ class TestRMemPoolBase : public ::testing::Test {
     uint8_t* data;
     ASSERT_OK(pool->Allocate(10, &data));
     ASSERT_EQ(10, pool->bytes_allocated());
-    data[0] = 35;
-    data[9] = 12;
-
-    // Expand
+    uint8_t test1 = 35;
+    uint8_t test2 = 12;
+    pool->Write(data, 0, (uint8_t *) &test1, 1);
+    pool->Write(data, 9, (uint8_t *) &test2, 1);
     ASSERT_OK(pool->Reallocate(10, 20, &data));
-    ASSERT_EQ(data[9], 12);
+    test1 = 0;
+    test2 = 0;
+    pool->Read(data, 9, (uint8_t *) &test2, 1);
+    // Expand
+    ASSERT_EQ(test2, 12);
     ASSERT_EQ(20, pool->bytes_allocated());
-
     // Shrink
     ASSERT_OK(pool->Reallocate(20, 5, &data));
-    ASSERT_EQ(data[0], 35);
+    pool->Read(data, 0, (uint8_t *) &test1, 1);
+    ASSERT_EQ(test1, 35);
     ASSERT_EQ(5, pool->bytes_allocated());
 
     // Free
